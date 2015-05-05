@@ -25,7 +25,10 @@ import java.io.OutputStream;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
-
+/**
+ *
+ * @see <a href="http://developer.android.com/training/camera/photobasics.html">Taking Photos Simply</a>
+ */
 public class MainActivity extends ActionBarActivity {
 
     private static final int REQUEST_IMAGE_CAPTURE = 1;
@@ -85,7 +88,7 @@ public class MainActivity extends ActionBarActivity {
         mImageView.setImageBitmap(mCurrentPhoto);
     }
 
-    // Launch
+    // Launch map
     public void onLocate(View view) {
         Intent intent = new Intent(this, MapsActivity.class);
 
@@ -109,7 +112,7 @@ public class MainActivity extends ActionBarActivity {
     // Image capture
     public void onCapture(View view) {
         if (Environment.getExternalStorageState().equals(android.os.Environment.MEDIA_MOUNTED)) {
-            dispatchTakePictureIntent();
+            dispatchImageCaptureIntent();
         } else {
             // Fake photo here, in case of emulator or device without SD card...
             fakePhoto();
@@ -149,15 +152,18 @@ public class MainActivity extends ActionBarActivity {
         }
     }
 
-    private void dispatchTakePictureIntent() {
-        Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+    private void dispatchImageCaptureIntent() {
+        Intent imageCaptureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
 
-        if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
+        // Ensure that there's a camera activity to handle the intent
+        if (imageCaptureIntent.resolveActivity(getPackageManager()) != null) {
+            // Create the File where the photo should go
             try {
                 File file = createImageFile();
-                takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, Uri.fromFile(file));
 
-                startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE);
+                // Continue only if the File was successfully created
+                imageCaptureIntent.putExtra(MediaStore.EXTRA_OUTPUT, Uri.fromFile(file));
+                startActivityForResult(imageCaptureIntent, REQUEST_IMAGE_CAPTURE);
             } catch (IOException e) {
                 e.printStackTrace();
 
@@ -196,13 +202,8 @@ public class MainActivity extends ActionBarActivity {
     private File createImageFile() throws IOException {
         // Create an image file name
 //        File storageDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
-        File storageDir = getApplicationContext().getExternalFilesDir(null);
-
-        File image = File.createTempFile(
-                "test-",        /* prefix */
-                ".jpg",         /* suffix */
-                storageDir      /* directory */
-        );
+        File storageDir = getApplicationContext().getExternalFilesDir(null); // app private images
+        File image = File.createTempFile("test-", ".jpg", storageDir);
 
         // Save a file: path for use with ACTION_VIEW intents
         mCurrentPhotoPath = image.getAbsolutePath();
@@ -210,6 +211,10 @@ public class MainActivity extends ActionBarActivity {
         return image;
     }
 
+    /**
+     * Quickly create a fake photo from an in-app asset.
+     * Mainly for use with emulators without camera.
+     */
     private void fakePhoto() {
         // Try-with-resources requires more recent SDK...
         try {
@@ -225,6 +230,7 @@ public class MainActivity extends ActionBarActivity {
                     out = new FileOutputStream(fakeFile);
                     byte[] buffer = new byte[1024];
                     int count;
+
                     while ((count = in.read(buffer)) > 0) {
                         out.write(buffer, 0, count);
                     }
