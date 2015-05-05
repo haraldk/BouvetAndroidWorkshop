@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">SnapLoc</string>
+
+    <string name="action_settings">Settings</string>
+    <string name="title_activity_maps">Snapshot Location</string>
+
+    <string name="btn_capture">Snap!</string>
+    <string name="thumbDescription">Thumbnail of beautiful snapshot</string>
+    <string name="btn_locate">Locate!</string>
+
+</resources>
