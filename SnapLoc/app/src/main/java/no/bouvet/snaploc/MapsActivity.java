@@ -77,7 +77,9 @@ public class MapsActivity extends ActionBarActivity {
      * This should only be called once and when we are sure that {@link #mMap} is not null.
      */
     private void setUpMap() {
-        LatLng position = new LatLng(mLocation.getLatitude(), mLocation.getLongitude());
+        LatLng position = mLocation != null
+                ? new LatLng(mLocation.getLatitude(), mLocation.getLongitude())
+                : new LatLng(0, 0); // "near Africa"
         mMap.addMarker(new MarkerOptions().position(position).title("Snapped here!"));
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(position, 11));
     }
