@@ -15,7 +15,6 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageView;
-import android.widget.Toast;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -111,10 +110,21 @@ public class MainActivity extends ActionBarActivity {
 
     // Image capture
     public void onCapture(View view) {
-        if (Environment.getExternalStorageState().equals(android.os.Environment.MEDIA_MOUNTED)) {
-            dispatchImageCaptureIntent();
+        // Create image capture intent
+        Intent imageCaptureActivity = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+
+        // Ensure that there's a camera activity to handle the intent
+        // and make sure we have an SD card present (needed to store image)
+        if (imageCaptureActivity.resolveActivity(getPackageManager()) != null
+                && Environment.getExternalStorageState().equals(android.os.Environment.MEDIA_MOUNTED)) {
+
+            // Create the File where the photo should go
+            imageCaptureActivity.putExtra(MediaStore.EXTRA_OUTPUT, Uri.fromFile(createImageFile()));
+
+            // Start image capture activity
+            startActivityForResult(imageCaptureActivity, REQUEST_IMAGE_CAPTURE);
         } else {
-            // Fake photo here, in case of emulator or device without SD card...
+            // Fake photo here, in case of no camera or emulator or device without SD card...
             fakePhoto();
 
             // Fake callback, to continue normal flow
@@ -126,49 +136,7 @@ public class MainActivity extends ActionBarActivity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
             updateThumbnail();
-
-            try {
-                ExifInterface exif = new ExifInterface(mCurrentPhotoPath);
-                Location location = ExifUtils.getLocation(exif);
-
-                if (location == null) {
-                    Future<Location> newLocation = new LocationHelper(getApplicationContext()).getLastBestLocation(100, 100);
-
-                    try {
-                        location = newLocation.get();
-                    } catch (ExecutionException e) {
-                        e.printStackTrace();
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                    }
-
-                    ExifUtils.setLocation(exif, location);
-                    exif.saveAttributes();
-                }
-            }
-            catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
-    private void dispatchImageCaptureIntent() {
-        Intent imageCaptureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-
-        // Ensure that there's a camera activity to handle the intent
-        if (imageCaptureIntent.resolveActivity(getPackageManager()) != null) {
-            // Create the File where the photo should go
-            try {
-                File file = createImageFile();
-
-                // Continue only if the File was successfully created
-                imageCaptureIntent.putExtra(MediaStore.EXTRA_OUTPUT, Uri.fromFile(file));
-                startActivityForResult(imageCaptureIntent, REQUEST_IMAGE_CAPTURE);
-            } catch (IOException e) {
-                e.printStackTrace();
-
-                Toast.makeText(getApplicationContext(), "Could not create image file...", Toast.LENGTH_LONG).show();
-            }
+            updateLocationIfNeeded();
         }
     }
 
@@ -199,16 +167,49 @@ public class MainActivity extends ActionBarActivity {
         mImageView.setImageBitmap(bitmap);
     }
 
-    private File createImageFile() throws IOException {
-        // Create an image file name
+    private void updateLocationIfNeeded() {
+        try {
+            ExifInterface exif = new ExifInterface(mCurrentPhotoPath);
+            Location location = ExifUtils.getLocation(exif);
+
+            if (location == null) {
+                Future<Location> newLocation = new LocationHelper(getApplicationContext()).getLastBestLocation(100, 100);
+
+                // NOTE: Don't do this at home, as it is blocking the UI thread, instead use a callback!
+                try {
+                    location = newLocation.get();
+                } catch (ExecutionException e) {
+                    e.printStackTrace();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+
+                ExifUtils.setLocation(exif, location);
+                exif.saveAttributes();
+            }
+        }
+        catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private File createImageFile() {
+        try {
+            // Create an image file name
 //        File storageDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
-        File storageDir = getApplicationContext().getExternalFilesDir(null); // app private images
-        File image = File.createTempFile("test-", ".jpg", storageDir);
+            File storageDir = getApplicationContext().getExternalFilesDir(null); // app private images
+            File image = File.createTempFile("test-", ".jpg", storageDir);
 
-        // Save a file: path for use with ACTION_VIEW intents
-        mCurrentPhotoPath = image.getAbsolutePath();
+            // Save a file: path for use with ACTION_VIEW intents
+            mCurrentPhotoPath = image.getAbsolutePath();
 
-        return image;
+            return image;
+        }
+        catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return null;
     }
 
     /**
